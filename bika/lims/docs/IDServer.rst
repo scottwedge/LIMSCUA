@@ -246,7 +246,9 @@ Change ID formats and create new `AnalysisRequest`::
 Re-seed and create a new `Batch`::
     >>> ploneapi.user.grant_roles(user=current_user,roles = ['Manager'])
     >>> transaction.commit()
-    >>> browser.open(portal_url + '/seed?prefix=batch-BA&seed=10')
+    >>> browser.open(portal_url + '/ng_seed?prefix=batch-BA&seed=10')
     >>> batch = api.create(batches, "Batch", ClientID="RB")
     >>> batch.getId() == "BA-{}-0011".format(year)
     True
+
+TODO: Test the case when numbers are exhausted in a sequence!

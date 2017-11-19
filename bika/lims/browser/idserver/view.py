@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 from bika.lims.browser import BrowserView
 from bika.lims.numbergenerator import INumberGenerator
 from zope.component import getUtility
@@ -27,3 +29,10 @@ class IDServerView(BrowserView):
         number_generator = getUtility(INumberGenerator)
         new_seq = number_generator.set_number(key=prefix, value=seed)
         return 'IDServerView: "%s" seeded to %s' % (prefix, new_seq)
+
+    def flush(self):
+        """ Flush the storage
+        """
+        number_generator = getUtility(INumberGenerator)
+        number_generator.flush()
+        return "IDServerView: Number storage flushed!"

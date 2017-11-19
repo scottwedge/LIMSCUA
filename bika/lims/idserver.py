@@ -275,7 +275,7 @@ def get_generated_number(context, config, variables, **kw):
     if prefix:
         key = "{}-{}".format(key, prefix)
 
-    # XXX: Handle flushed storage - WIP!
+    # XXX: Handle flushed storage - refactoring needed here!
     if key not in number_generator:
         # we need to figure out the current state of the DB.
         existing = search_by_prefix(portal_type, prefix)
@@ -286,6 +286,10 @@ def get_generated_number(context, config, variables, **kw):
                 max_num = num
         # set the number generator
         number_generator.set_number(key, max_num)
+
+    # TODO: We need a way to figure out the max numbers allowed in this
+    # sequence to raise a KeyError when the current number exceeds the maximum
+    # number possible in the sequence
 
     # generate a new number
     number = number_generator.generate_number(key=key)
