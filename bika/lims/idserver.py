@@ -284,15 +284,12 @@ def get_generated_number(context, config, variables, **kw):
             num = to_int(slice(api.get_id(brain), start=split_length))
             if num > max_num:
                 max_num = num
-        # XXX why this?
-        max_num = max_num - 1
         # set the number generator
         number_generator.set_number(key, max_num)
 
     # generate a new number
     number = number_generator.generate_number(key=key)
-    # XXX here again
-    return number + 1
+    return number
 
 
 def generateUniqueId(context, **kw):

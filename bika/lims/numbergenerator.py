@@ -88,7 +88,7 @@ class NumberGenerator(object):
                 counter = storage[key]
                 storage[key] = counter + 1
             except KeyError:
-                storage[key] = 0
+                storage[key] = 1
         finally:
             logger.debug("*** consecutive number lock release ***")
             self.storage._p_changed = True

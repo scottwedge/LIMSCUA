@@ -23,7 +23,7 @@ class IDServerView(BrowserView):
         seed = int(seed)
         if seed < 0:
             return 'Seed cannot be negative'
-        seed = seed - 1
+
         number_generator = getUtility(INumberGenerator)
         new_seq = number_generator.set_number(key=prefix, value=seed)
         return 'IDServerView: "%s" seeded to %s' % (prefix, new_seq)
