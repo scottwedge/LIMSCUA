@@ -198,8 +198,9 @@ def slice(string, separator="-", start=None, end=None):
     start = to_int(start)
     end = to_int(end, length)
 
-    # return the sliced string
-    return separator.join(segments[start:end])
+    # return the separator joined sliced segments
+    sliced_parts = segments[start:end]
+    return separator.join(sliced_parts)
 
 
 def get_current_year():
@@ -217,6 +218,85 @@ def search_by_prefix(portal_type, prefix):
     return filter(lambda brain: api.get_id(brain).startswith(prefix), brains)
 
 
+def get_ids_with_prefix(portal_type, prefix):
+    """Return a list of ids sharing the same portal type and prefix
+    """
+    brains = search_by_prefix(portal_type, prefix)
+    ids = map(api.get_id, brains)
+    return ids
+
+
+def get_counted_number(context, config, variables, **kw):
+    """Compute the number for the sequence type "Counter"
+    """
+    # This "context" is defined by the user in Bika Setup and can be actuall anything.
+    # However, we assume it is something like "sample" or similar
+    ctx = config.get("context")
+
+    # get object behind the context name (falls back to the current context)
+    obj = config.get(ctx, context)
+
+    # get the counter type, which is either "backreference" or "contained"
+    counter_type = config.get("counter_type")
+
+    # the counter reference is either the "replationship" for
+    # "backreference" or the meta type for contained objects
+    counter_reference = config.get("counter_reference")
+
+    # This should be a list of existing items, including the current context object
+    seq_items = get_objects_in_sequence(obj, counter_type, counter_reference)
+
+    number = len(seq_items)
+    if counter_type == "backreference":
+        number -= 1
+
+    return number
+
+
+def get_generated_number(context, config, variables, **kw):
+    """Generate a new persistent number with the number generator for the
+    sequence type "Generated"
+    """
+    # allow portal_type override
+    portal_type = kw.get("portal_type") or api.get_portal_type(context)
+
+    # The ID format for string interpolation
+    id_template = config.get("form", "")
+
+    # The split length defines where the variable part of the ID template begins
+    split_length = config.get("split_length", 0)
+
+    # The prefix tempalte is the static part of the ID
+    prefix_template = slice(id_template, end=split_length)
+
+    # get the number generator
+    number_generator = getUtility(INumberGenerator)
+
+    # generate the key for the number generator storage
+    prefix = prefix_template.format(**variables)
+    key = portal_type.lower()
+    if prefix:
+        key = "{}-{}".format(key, prefix)
+
+    # XXX: Handle flushed storage - WIP!
+    if key not in number_generator:
+        # we need to figure out the current state of the DB.
+        prefix = prefix_template.format(**variables)
+        existing = search_by_prefix(portal_type, prefix)
+        max_num = 1
+        for brain in existing:
+            num = to_int(slice(api.get_id(brain), start=split_length))
+            if num > max_num:
+                max_num = num
+        # set the number generator
+        number_generator.set_number(key, max_num)
+
+    # generate a new number
+    number = number_generator.generate_number(key=key)
+
+    return number
+
+
 def generateUniqueId(context, **kw):
     """ Generate pretty content IDs.
     """
@@ -224,10 +304,10 @@ def generateUniqueId(context, **kw):
     # allow portal_type override
     portal_type = kw.get("portal_type") or api.get_portal_type(context)
 
-    # get the config for this portal type
+    # get the config for this portal type from the system setup
     config = get_config(context, **kw)
 
-    # get the variables map for string replacement
+    # get the variables map for later string interpolation
     variables = get_variables(context, **kw)
 
     # @mikejmets: Why this?
@@ -239,83 +319,33 @@ def generateUniqueId(context, **kw):
             'sample': context,
         })
 
-    # The new generated number
+    # The new generatef sequence number
     number = 0
 
     # get the sequence type from the global config
     sequence_type = config.get("sequence_type", "generated")
 
-    # The ID format for string interpolation
-    id_template = config.get("form", "")
-
-    # The split length defines where the variable part of the ID template begins
-    split_length = config.get("split_length", 0)
-
-    # The prefix tempalte is the static part of the ID
-    prefix_template = slice(id_template, end=split_length)
-
     # Sequence Type is "Counter", so we use the length of the backreferences or
     # contained objects of the evaluated "context" defined in the config
     if sequence_type == 'counter':
-
-        # This "context" is defined by the user in Bika Setup and can be actuall anything.
-        # However, we assume it is something like "sample" or similar
-        ctx = config.get("context")
-
-        # get object behind the context name (falls back to the current context)
-        obj = config.get(ctx, context)
-
-        # get the counter type, which is either "backreference" or "contained"
-        counter_type = config.get("counter_type")
-
-        # the counter reference is either the "replationship" for
-        # "backreference" or the meta type for contained objects
-        counter_reference = config.get("counter_reference")
-
-        # This should be a list of existing items, including the current context object
-        seq_items = get_objects_in_sequence(obj, counter_type, counter_reference)
-
-        # since the current context is already in the list of items, we need to -1
-        number = len(seq_items) - 1
-
-        # store the new number to the variables map for string interpolation
-        variables["seq"] = number
+        number = get_counted_number(context, config, variables, **kw)
 
     # Sequence Type is "Generated", so the ID is constructed according to the
     # configured split length
     if sequence_type == 'generated':
+        number = get_generated_number(context, config, variables, **kw)
 
-        # get the number generator
-        number_generator = getUtility(INumberGenerator)
+    # store the new sequence number to the variables map for string interpolation
+    variables["seq"] = number
 
-        # generate the key for the number generator storage
-        prefix_config = '{}-{}'.format(portal_type.lower(), prefix_template)
-        key = prefix_config.format(**variables)
+    # The ID formatting template from the user config, e.g. {sampleId}-R{seq:02d}
+    id_template = config.get("form", "")
 
-        # XXX: Handle flushed storage - WIP!
-        if key not in number_generator:
-            # we need to figure out the current state of the DB.
-            prefix = prefix_template.format(**variables)
-            existing = search_by_prefix(portal_type, prefix)
-            max_num = 1
-            for brain in existing:
-                num = to_int(slice(api.get_id(brain), start=split_length))
-                if num > max_num:
-                    max_num = num
-            # set the number generator
-            number_generator.set_number(key, max_num)
-
-        # generate a new number
-        number = number_generator.generate_number(key=key)
-
-        # store the new number to the variables map for string interpolation
-        variables["seq"] = number
-
-    # string interpolate the given id template
-    result = id_template.format(**variables)
-
-    logger.info('generateUniqueId: %s' % api.normalize_filename(result))
-    return api.normalize_filename(result)
+    # Interpolate the ID template
+    new_id = id_template.format(**variables)
+    normalized_id = api.normalize_filename(new_id)
+    logger.info("generateUniqueId: {}".format(normalized_id))
+    return normalized_id
 
 
 def renameAfterCreation(obj):
