@@ -64,7 +64,7 @@ def get_objects_in_sequence(brain_or_object, ctype, cref):
         return get_backreferences(obj, cref)
     if ctype == "contained":
         return get_contained_items(obj, cref)
-    raise RuntimeError("")
+    raise ValueError("Reference value is mandatory for sequence type counter")
 
 
 def get_backreferences(obj, relationship):
@@ -234,7 +234,7 @@ def get_counted_number(context, config, variables, **kw):
     ctx = config.get("context")
 
     # get object behind the context name (falls back to the current context)
-    obj = config.get(ctx, context)
+    obj = variables.get(ctx, context)
 
     # get the counter type, which is either "backreference" or "contained"
     counter_type = config.get("counter_type")
@@ -247,9 +247,6 @@ def get_counted_number(context, config, variables, **kw):
     seq_items = get_objects_in_sequence(obj, counter_type, counter_reference)
 
     number = len(seq_items)
-    if counter_type == "backreference":
-        number -= 1
-
     return number
 
 
@@ -260,7 +257,7 @@ def get_generated_number(context, config, variables, **kw):
     # allow portal_type override
     portal_type = kw.get("portal_type") or api.get_portal_type(context)
 
-    # The ID format for string interpolation
+    # The ID format for string interpolation, e.g. WS-{seq:03d}
     id_template = config.get("form", "")
 
     # The split length defines where the variable part of the ID template begins
@@ -281,43 +278,32 @@ def get_generated_number(context, config, variables, **kw):
     # XXX: Handle flushed storage - WIP!
     if key not in number_generator:
         # we need to figure out the current state of the DB.
-        prefix = prefix_template.format(**variables)
         existing = search_by_prefix(portal_type, prefix)
-        max_num = 1
+        max_num = 0
         for brain in existing:
             num = to_int(slice(api.get_id(brain), start=split_length))
             if num > max_num:
                 max_num = num
+        # XXX why this?
+        max_num = max_num - 1
         # set the number generator
         number_generator.set_number(key, max_num)
 
     # generate a new number
     number = number_generator.generate_number(key=key)
-
-    return number
+    # XXX here again
+    return number + 1
 
 
 def generateUniqueId(context, **kw):
     """ Generate pretty content IDs.
     """
 
-    # allow portal_type override
-    portal_type = kw.get("portal_type") or api.get_portal_type(context)
-
     # get the config for this portal type from the system setup
     config = get_config(context, **kw)
 
     # get the variables map for later string interpolation
     variables = get_variables(context, **kw)
-
-    # @mikejmets: Why this?
-    # => Please remove if not used or write a comment here.
-    if portal_type == "Sample" and kw.get("parent"):
-        config = get_config('SamplePartition')
-        variables.update({
-            'sampleId': context.getId(),
-            'sample': context,
-        })
 
     # The new generatef sequence number
     number = 0
@@ -345,6 +331,7 @@ def generateUniqueId(context, **kw):
     new_id = id_template.format(**variables)
     normalized_id = api.normalize_filename(new_id)
     logger.info("generateUniqueId: {}".format(normalized_id))
+
     return normalized_id
 
 

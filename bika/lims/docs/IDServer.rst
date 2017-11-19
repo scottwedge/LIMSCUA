@@ -133,7 +133,7 @@ Set up `ID Server` configuration::
     ...             'portal_type': 'SamplePartition',
     ...             'sequence_type': 'counter',
     ...             'value': ''},
-    ...            {'form': 'BÖ-{year}-{seq:04d}',
+    ...            {'form': 'BA-{year}-{seq:04d}',
     ...             'portal_type': 'Batch',
     ...             'prefix': 'batch',
     ...             'sequence_type': 'generated',
@@ -220,7 +220,7 @@ Change ID formats and create new `AnalysisRequest`::
     ...             'portal_type': 'SamplePartition',
     ...             'sequence_type': 'counter',
     ...             'value': ''},
-    ...            {'form': 'BÖ-{year}-{seq:04d}',
+    ...            {'form': 'BA-{year}-{seq:04d}',
     ...             'portal_type': 'Batch',
     ...             'prefix': 'batch',
     ...             'sequence_type': 'generated',
@@ -250,4 +250,3 @@ Re-seed and create a new `Batch`::
     >>> batch = api.create(batches, "Batch", ClientID="RB")
     >>> batch.getId() == "BA-{}-0011".format(year)
     True
-
