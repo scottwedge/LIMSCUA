@@ -291,8 +291,13 @@ def get_generated_number(context, config, variables, **kw):
     # sequence to raise a KeyError when the current number exceeds the maximum
     # number possible in the sequence
 
-    # generate a new number
-    number = number_generator.generate_number(key=key)
+    # TODO: This allows us to "preview" the next generated ID in the UI
+    if not kw.get("dry_run", False):
+        # generate a new number
+        number = number_generator.generate_number(key=key)
+    else:
+        # just fetch the next number
+        number = number_generator.get(key, 1)
     return number
 
 
@@ -357,6 +362,11 @@ def renameAfterCreation(obj):
     if not new_id:
         new_id = generateUniqueId(obj)
 
+    # TODO: This is a naive check just in current folder
+    # -> this should check globally for duplicate objects with same prefix
+    # N.B. a check like `search_by_prefix` each time would probably slow things
+    # down too much!
+    # -> A solution could be to store all IDs with a certain prefix in a storage.
     parent = api.get_parent(obj)
     if new_id in parent.objectIds():
         # XXX We could do the check in a `while` loop and generate a new one.

@@ -75,6 +75,9 @@ class NumberGenerator(object):
     def __getitem__(self, key):
         return self.storage.__getitem__(key)
 
+    def get(self, key, default=None):
+        return self.storage.get(key, default)
+
     def get_number(self, key):
         """ get the next consecutive number
         """
